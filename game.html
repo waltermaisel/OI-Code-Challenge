@@ -1,0 +1,352 @@
+<!doctype html>
+<html>
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, minimal-ui">
+	<title>Missile Command</title>
+	<script src="//cdn.jsdelivr.net/npm/phaser@3.11.0/dist/phaser.js"></script>
+	<style type="text/css">
+		canvas {
+			padding: 0;
+			margin: auto;
+			display: block;
+			position: absolute;
+			top: 0;
+			bottom: 0;
+			left: 0;
+			right: 0;
+			height: 100%;
+		}
+	</style>
+</head>
+<body>
+<script>
+
+var score = 0;
+var health = 4;
+var scoreText;
+var healthText;
+var bombDropped0 = false;
+var bombDropped1 = false;
+var mouseX;
+var mouseY;
+var tween;
+var gameOver = false;
+
+var config = {
+    type: Phaser.AUTO,
+	width: 640,
+	height: 960,
+    physics: {
+        default: 'arcade'
+    },
+    scene: {
+        preload: preload,
+        create: create,
+        update: update
+    }
+};
+
+var game = new Phaser.Game(config);
+
+function preload ()
+{
+	this.load.image('missile', 'assets/missile.png');
+	this.load.image('enemy', 'assets/enemy.png');
+	this.load.image('bomb', 'assets/bomb.png');
+	this.load.image('explosion', 'assets/explosion.png');
+	this.load.image('airExplosion', 'assets/airExplosion.png');
+}
+
+function create ()
+{
+	// Player Graphic
+	player = this.add.graphics({x: config.width/2, y: config.height*.75});
+	player.fillStyle(0xffff00, 1);
+	player.fillCircle(0, 0, 72);
+	player.fillRoundedRect(-10, -100, 20, 50, 5);
+	player.setDepth(100);
+	
+	// The town being defended
+	hometurf = this.add.graphics();
+	hometurf.fillStyle(0xffff00, 1);
+	hometurf.fillRect(0, config.height*.75, config.width, 10);
+	for (var i = 0; i < config.width/2 - 80; i += config.width/18) {
+		var x = Math.random()*70;
+		hometurf.fillRect(i, config.height*.75-x, config.width/20, x);
+	};
+	for (var i = config.width/2 + 80; i < config.width; i += config.width/18) {
+		var x = Math.random()*70;
+		hometurf.fillRect(i, config.height*.75-x, config.width/20, x);
+	};
+	
+	// The lone projectile
+	missile = this.physics.add.sprite(config.width/2, config.height*.75, 'missile').setOrigin(0.5, 0.5);
+	missile.setVisible(false);
+	
+	// 2 Enemies haunting the skies
+	enemy0 = this.physics.add.sprite(config.width, config.height*.2, 'enemy').setOrigin(0.5, 0.5);
+	enemy0.setVisible(false);
+	enemy1 = this.physics.add.sprite(config.width, config.height*.2, 'enemy').setOrigin(0.5, 0.5);
+	enemy1.setVisible(false);
+	
+	// Armaments for the enemies to use
+	bomb0 = this.physics.add.sprite(0, 0, 'bomb').setOrigin(0.5, 0.5);
+	bomb0.setVisible(false);
+	bomb1 = this.physics.add.sprite(0, 0, 'bomb').setOrigin(0.5, 0.5);
+	bomb1.setVisible(false);
+	
+	// yellow explosion on air collisions
+	airExplosion = this.physics.add.sprite(0, 0, 'airExplosion').setOrigin(0.5, 0.5).setVisible(false).setAlpha(0.00);
+	
+	// collider for enemies and missile
+	this.physics.add.collider(enemy0, missile, hitEnemy0, null, this);
+	this.physics.add.collider(enemy1, missile, hitEnemy1, null, this);
+	
+	// collider for missiles and bombs
+	this.physics.add.collider(bomb0, missile, hitBomb0, null, this);
+	this.physics.add.collider(bomb1, missile, hitBomb1, null, this);
+	
+	// explosions for when the bomb hits hometurf
+	explosion = this.physics.add.staticGroup();
+	
+	scoreText = this.add.text(config.width/2, config.height/2, 'Score: ' + score, { fontFamily: 'Trebuchet MS', fontSize: '32px', color: '#ffff00', }).setOrigin(0.5);
+	healthText = this.add.text(config.width/2, config.height*.51, 'Health: ' + health, { fontFamily: 'Trebuchet MS', fontSize: '18px', color: '#ffff00', }).setOrigin(0.5, 0);
+
+	tween = this.tweens.add({
+		targets: airExplosion,
+		alpha: 1.00,
+		ease: 'Power1',
+		duration: 800,
+		yoyo: true,
+		paused: true,
+		onStart: function () {airExplosion.setVisible(true); },
+		onComplete: function () { airExplosion.setVisible(false); },
+	});
+	
+	overlay = this.add.graphics();
+	overlay.fillStyle(0x000000, 0.75);
+	overlayBg = overlay.fillRect(0, 0, config.width, config.height).setVisible(false);
+	overlayText = this.add.text(config.width/2, config.height*.4, 'Click/Tap to Play Again', { fontFamily: 'Trebuchet MS', fontSize: '48px', color: '#ffff00', }).setOrigin(0.5).setVisible(false);
+}
+
+//collision handlers
+function hitEnemy0(enemy0, missile) {
+	enemy0.setVisible(false);
+	enemy0.setVelocityX(0);
+	airExplosion.setPosition(enemy0.x, enemy0.y);
+	tween.restart();
+	enemy0.setX(config.width);
+	missile.setVisible(false);
+	score += 10;
+	scoreText.setText('Score: ' + score);
+}
+function hitEnemy1(enemy1, missile) {
+	enemy1.setVisible(false);
+	enemy1.setVelocityX(0);
+	airExplosion.setPosition(enemy1.x, enemy1.y);
+	tween.restart();
+	enemy1.setX(0);
+	missile.setVisible(false);
+	score += 10;
+	scoreText.setText('Score: ' + score);
+}
+function hitBomb0 (bomb0, missile) {
+	bomb0.setVisible(false);
+	bomb0.setVelocityY(0);
+	bomb0.setPosition(0, 0);
+	missile.setVisible(false);
+	missile.setVelocityX(0);
+	missile.setVelocityY(0);
+	airExplosion.setPosition(bomb0.x, bomb0.y);
+	tween.restart();	
+	missile.setPosition(config.width, config.height);
+	bombDropped0 = false;
+	score += 12;
+	scoreText.setText('Score: ' + score);
+}
+function hitBomb1 (bomb1, missile) {
+	bomb1.setVisible(false);
+	bomb1.setVelocityY(0);
+	bomb1.setPosition(0, 0);
+	missile.setVisible(false);
+	missile.setVelocityX(0);
+	missile.setVelocityY(0);
+	airExplosion.setPosition(bomb1.x, bomb1.y);
+	tween.restart();
+	missile.setPosition(config.width, config.height);
+	bombDropped1 = false;
+	score += 12;
+	scoreText.setText('Score: ' + score);
+}
+
+function update ()
+{
+	// the artillery tilts to aim
+	function aimPlayer (x, y) {
+		if (y < config.height*.7) {
+			if (x > config.width/2) {
+				player.setRotation((Math.PI/2)-Math.atan(((config.height*.75)-y)/(x-(config.width/2))));
+			} else if (x < config.width/2) {
+				player.setRotation(Math.atan(((config.height*.75)-y)/((config.width/2)-x))-(Math.PI/2));
+			} else {
+				player.setRotation(0)
+			}
+		}
+	};
+	
+	// the projectile is fired and moves slowly
+	function fire (x, y) {
+		if (!missile.visible) {
+			missile.setX(player.x);
+			missile.setY(player.y);
+			missile.setVisible(true);
+			missile.setVelocityX((x-player.x)/15);
+			missile.setVelocityY((y-player.y)/15);
+		}
+	};
+	
+	// mouse or tap invokes aim & fire
+	this.input.on('pointerdown', function (pointer) {
+		if (gameOver == false) {
+			aimPlayer(pointer.x, pointer.y);
+			fire(pointer.x, pointer.y);
+		} else if (gameOver == true) {
+			overlay.setVisible(false);
+			overlayBg.setVisible(false);
+			overlayText.setVisible(false);
+			score = 0;
+			health = 4;
+			healthText.setText('Health: ' + health);
+			gameOver = false;
+			bomb0.setVisible(false);
+			bomb0.setVelocityY(0);
+			bomb0.setPosition(0, 0);
+			missile.setVisible(false);
+			missile.setVelocityX(0);
+			missile.setVelocityY(0);
+			bombDropped0 = false;
+			bomb1.setVisible(false);
+			bomb1.setVelocityY(0);
+			bomb1.setPosition(0, 0);
+			bombDropped1 = false;
+		}
+	}, this);
+	
+	if (gameOver == false) {
+
+		this.input.on('pointermove', function (pointer) {
+			mouseX = pointer.x;
+			mouseY = pointer.y;
+		});
+		
+		if (!missile.visible) {
+			aimPlayer(mouseX, mouseY);
+		};
+		
+		// if the projectile leaves the screen it's reloaded
+		if (missile.x > config.width || missile.x < 0 ||
+			missile.y < 0) {
+			missile.setVisible(false);
+			missile.setVelocityX(0);
+			missile.setVelocityY(0);
+		};
+		//if the enemies leave the screen they respawn
+		if (enemy0.x < 0) {
+			enemy0.setVisible(false);
+			enemy0.setVelocityX(0);
+			enemy0.setVelocityY(0);
+			enemy0.setX(config.width);
+		};
+		if (enemy1.x > config.width) {
+			enemy1.setVisible(false);
+			enemy1.setVelocityX(0);
+			enemy1.setVelocityY(0);
+			enemy1.setX(0);
+		};
+		
+		//the enemies respawn when vanquished
+		if (!enemy0.visible && Math.random() > .994) {
+			enemy0.setX(config.width);
+			enemy0.setY(config.height*.2);
+			enemy0.setVisible(true);
+			enemy0.setVelocityX(-5);
+			enemy0.setVelocityY(0);
+		}
+		if (!enemy1.visible && Math.random() > .994) {
+			enemy1.setX(0);
+			enemy1.setY(config.height*.25);
+			enemy1.setVisible(true);
+			enemy1.setVelocityX(5);
+			enemy1.setVelocityY(0);
+		}
+		
+		// the enemies randomly drop bombs over hometurf
+		if (bombDropped0 == false &&
+			enemy0.x < config.width &&
+			enemy0.x > config.width/2+40 &&
+			Math.random() > 0.999 ||
+			bombDropped0 == false &&
+			enemy0.x < config.width/2-40 &&
+			enemy0.x > 0 &&
+			Math.random() > 0.999) {
+			bomb0.setX(enemy0.x);
+			bomb0.setY(enemy0.y);
+			bomb0.setVisible(true);
+			bomb0.setVelocityY(12);
+			bombDropped0 = true;
+		}
+		if (bombDropped1 == false &&
+			enemy1.x < config.width &&
+			enemy1.x > config.width/2+40 &&
+			Math.random() > 0.999 ||
+			bombDropped1 == false &&
+			enemy1.x < config.width/2-40 &&
+			enemy1.x > 0 &&
+			Math.random() > 0.999) {
+			bomb1.setX(enemy1.x);
+			bomb1.setY(enemy1.y);
+			bomb1.setVisible(true);
+			bomb1.setVelocityY(12);
+			bombDropped1 = true;
+		}
+		
+		// since graphics can't collide if bomb gets too low it explodes
+		if (bomb0.y >= config.height*.75) {
+			bomb0.setVisible(false);
+			bomb0.setVelocityY(0);
+			explosion.create(bomb0.x, bomb0.y, 'explosion');
+			bombDropped0 = false;
+			bomb0.setY(0);
+			health -= 1;
+			healthText.setText('Health: ' + health);
+		}
+		if (bomb1.y >= config.height*.75) {
+			bomb1.setVisible(false);
+			bomb1.setVelocityY(0);
+			explosion.create(bomb1.x, bomb1.y, 'explosion');
+			bombDropped1 = false;
+			bomb1.setY(0);
+			health -= 1;
+			healthText.setText('Health: ' + health);
+		}
+		
+		if (health < 1) gameOver = true;
+	}
+	if (gameOver == true) {
+		overlay.setVisible(true);
+		overlayBg.setVisible(true);
+		overlayText.setVisible(true);
+		enemy0.setVelocityX(0);
+		enemy1.setVelocityX(0);
+		bomb0.setVelocityY(0);
+		bomb1.setVelocityY(0);
+		missile.setVelocityX(0);
+		missile.setVelocityY(0);
+	}
+}
+
+</script>
+</body>
+</html>
+	
