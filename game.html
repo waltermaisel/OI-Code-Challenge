@@ -154,12 +154,12 @@ function hitEnemy1(enemy1, missile) {
 function hitBomb0 (bomb0, missile) {
 	bomb0.setVisible(false);
 	bomb0.setVelocityY(0);
+	airExplosion.setPosition(bomb0.x, bomb0.y);
+	tween.restart();
 	bomb0.setPosition(0, 0);
 	missile.setVisible(false);
 	missile.setVelocityX(0);
-	missile.setVelocityY(0);
-	airExplosion.setPosition(bomb0.x, bomb0.y);
-	tween.restart();	
+	missile.setVelocityY(0);	
 	missile.setPosition(config.width, config.height);
 	bombDropped0 = false;
 	score += 12;
@@ -168,12 +168,12 @@ function hitBomb0 (bomb0, missile) {
 function hitBomb1 (bomb1, missile) {
 	bomb1.setVisible(false);
 	bomb1.setVelocityY(0);
+	airExplosion.setPosition(bomb1.x, bomb1.y);
+	tween.restart();
 	bomb1.setPosition(0, 0);
 	missile.setVisible(false);
 	missile.setVelocityX(0);
 	missile.setVelocityY(0);
-	airExplosion.setPosition(bomb1.x, bomb1.y);
-	tween.restart();
 	missile.setPosition(config.width, config.height);
 	bombDropped1 = false;
 	score += 12;
